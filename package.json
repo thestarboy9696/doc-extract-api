@@ -1,12 +1,27 @@
 {
   "name": "doc-extract-api",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "description": "SchemaLock — extract structured JSON from invoices, receipts, contracts, resumes, or any document/text via a caller-supplied JSON Schema. This package ships the MCP server (stdio, local/trusted use); the same engine is also live as an x402-gated API for autonomous AI agents at https://doc-extract-api.thestarboy9696-4ef.workers.dev.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thestarboy9696/doc-extract-api.git"
+  },
+  "homepage": "https://github.com/thestarboy9696/doc-extract-api",
+  "license": "MIT",
+  "mcpName": "io.github.thestarboy9696/doc-extract-api",
+  "bin": {
+    "doc-extract-api-mcp": "dist/mcp-server.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "mcp": "tsx mcp/server.ts",
+    "build:mcp": "esbuild mcp/server.ts --bundle --platform=node --format=esm --outfile=dist/mcp-server.js && chmod +x dist/mcp-server.js",
     "typecheck": "tsc --noEmit && tsc --noEmit -p mcp/tsconfig.json"
   },
   "dependencies": {
@@ -23,6 +38,7 @@
     "@cloudflare/workers-types": "^4.20241022.0",
     "@types/node": "^22.7.0",
     "@x402/fetch": "^2.23.0",
+    "esbuild": "^0.24.2",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "viem": "^2.56.0",
