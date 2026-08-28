@@ -6,8 +6,10 @@ domain-specific validation; `/extract/custom` accepts *any* JSON Schema, so a ca
 limited to those four types. Built for autonomous AI agents: no signup, no API key, no human
 checkout — an agent discovers the price and pays per call via [x402](https://www.x402.org) v2
 (USDC), entirely over HTTP, and can find this service programmatically via the **x402 Bazaar**
-discovery catalog. Same extraction logic is also exposed as an MCP server for
-locally-configured/trusted use.
+discovery catalog. Also published as an MCP server (`doc-extract-api-mcp` on npm, and on the
+[official MCP Registry](https://registry.modelcontextprotocol.io)) — but that's a *client* for the
+same paid API, not a free alternative: every MCP tool call is a real x402 payment from a wallet
+you supply, not a locally-run, unmetered extraction. There is no free path to this service.
 
 ## Why x402, not Stripe
 
@@ -90,8 +92,12 @@ for the exact listing copy and each route's tags (`serviceName`/`tags`/`descript
 - **`src/routes/extractHandler.ts`** — pure extraction logic; payment has already been
   verified by the time this runs.
 - **`mcp/server.ts`** — stdio MCP server exposing `extract_invoice`, `extract_receipt`,
-  `extract_contract`, and `extract_resume` tools, calling the same `src/lib/extract.ts`
-  pipeline directly (no HTTP hop, no payment gate — this path is for local/trusted use only).
+  `extract_contract`, `extract_resume`, and `extract_custom` tools. Each tool call signs and
+  sends a real x402 payment (via `@x402/fetch`'s `wrapFetchWithPayment`, same mechanism as
+  `scripts/test-payment.mjs`) from a wallet supplied via `WALLET_PRIVATE_KEY`, then calls the
+  live HTTP API over the network — it does not run extraction locally or call Claude directly.
+  No free path: a missing or unfunded wallet fails the same way it would calling the API
+  directly.
 
 ## One deliberate deviation from the original spec
 
@@ -212,24 +218,26 @@ handles the 402 → sign payment → retry loop automatically.
 npm run deploy
 ```
 
-### 6. MCP server (local/agent use)
+### 6. MCP server (paid, agent use)
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+export WALLET_PRIVATE_KEY=0x...   # a wallet funded with real USDC on Base — every call spends from it
 npm run mcp
 ```
 
-Point an MCP-capable client (Claude Desktop, etc.) at this stdio server to expose
-`extract_invoice`, `extract_receipt`, `extract_contract`, and `extract_resume` as tools. This
-path has no payment gate — it's for local/trusted use, not the public paid surface.
+Or, once published, an MCP client can run it directly without cloning this repo:
+
+```bash
+npx doc-extract-api-mcp
+```
+
+Point an MCP-capable client at this stdio server to expose `extract_invoice`, `extract_receipt`,
+`extract_contract`, `extract_resume`, and `extract_custom` as tools. Every call pays the live API
+over the network via x402 — there is no local/free extraction path, and no `ANTHROPIC_API_KEY` is
+needed on the client side at all (the server holds that; callers only need a funded wallet).
 
 ## Not yet done
 
-- MCP server has no x402/payment gate — it's a local-trust path only.
 - Resumes carry real PII (name, contact info, work history). Nothing is persisted after the
   response is returned (same as every other document type here), but that's worth restating
   given the sensitivity — see `src/lib/discovery.ts`'s resume description.
-- Bazaar cataloging needs a real mainnet payment per route to trigger indexing (see 2b above)
-  — only `/extract/invoice` has had one so far, and that entry is still showing stale content.
-  `/extract/custom`, `/extract/receipt`, `/extract/contract`, and `/extract/resume` haven't had
-  a mainnet payment yet so aren't catalogued at all.

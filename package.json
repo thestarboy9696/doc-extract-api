@@ -1,8 +1,8 @@
 {
   "name": "doc-extract-api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "SchemaLock — extract structured JSON from invoices, receipts, contracts, resumes, or any document/text via a caller-supplied JSON Schema. This package ships the MCP server (stdio, local/trusted use); the same engine is also live as an x402-gated API for autonomous AI agents at https://doc-extract-api.thestarboy9696-4ef.workers.dev.",
+  "description": "SchemaLock — extract structured JSON from invoices, receipts, contracts, resumes, or any document/text via a caller-supplied JSON Schema. This package ships an MCP client for the paid x402 API (Base USDC) — every tool call is a real payment from your own WALLET_PRIVATE_KEY, no free path. Live at https://doc-extract-api.thestarboy9696-4ef.workers.dev.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thestarboy9696/doc-extract-api.git"
@@ -31,17 +31,17 @@
     "@x402/core": "^2.23.0",
     "@x402/evm": "^2.23.0",
     "@x402/extensions": "^2.23.0",
+    "@x402/fetch": "^2.23.0",
     "@x402/hono": "^2.23.0",
-    "hono": "^4.6.0"
+    "hono": "^4.6.0",
+    "viem": "^2.56.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241022.0",
     "@types/node": "^22.7.0",
-    "@x402/fetch": "^2.23.0",
     "esbuild": "^0.24.2",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "viem": "^2.56.0",
     "wrangler": "^3.87.0"
   }
 }

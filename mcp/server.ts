@@ -1,21 +1,22 @@
 #!/usr/bin/env node
+// This MCP server is a thin client for the paid SchemaLock API — every tool call is a real x402
+// (USDC on Base) payment against the same live endpoints agents pay via HTTP. There is no free
+// extraction path: earlier versions ran extraction locally with the operator's own
+// ANTHROPIC_API_KEY at no cost per call; this version requires the caller's own funded wallet and
+// pays for every call, so MCP distribution (npm, the official MCP Registry) is a discovery
+// surface, not a way to use the service for free.
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { extractDocument } from "../src/lib/extract";
-import { callCustomExtractionTool, type CustomExtractionInput } from "../src/lib/claude";
-import { parseCustomSchema, validateInstructions, validateTextContent } from "../src/lib/customSchema";
-import type { DocKind, Env, ExtractedData } from "../src/types";
+import { createPublicClient, http as viemHttp } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { base } from "viem/chains";
+import { toClientEvmSigner, ExactEvmScheme } from "@x402/evm";
+import { x402Client } from "@x402/core/client";
+import { wrapFetchWithPayment } from "@x402/fetch";
+import type { DocKind } from "../src/types";
 
-const env: Env = {
-  ANTHROPIC_API_KEY: requireEnv("ANTHROPIC_API_KEY"),
-  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
-  // x402 payment is enforced by the HTTP API's middleware, not by this local MCP transport.
-  X402_PAY_TO_ADDRESS: "",
-  X402_NETWORK: "",
-  X402_PRICE_PER_CALL: "",
-  X402_CUSTOM_PRICE_PER_CALL: "",
-};
+const API_BASE = "https://doc-extract-api.thestarboy9696-4ef.workers.dev";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -24,6 +25,20 @@ function requireEnv(name: string): string {
   }
   return value;
 }
+
+const rawKey = requireEnv("WALLET_PRIVATE_KEY").trim();
+if (!/^0x[0-9a-fA-F]{64}$/.test(rawKey)) {
+  throw new Error(
+    "WALLET_PRIVATE_KEY doesn't look like a valid private key (expected 0x + 64 hex chars). " +
+      "This must be a wallet funded with real USDC on Base — every tool call spends from it."
+  );
+}
+
+const account = privateKeyToAccount(rawKey as `0x${string}`);
+const publicClient = createPublicClient({ chain: base, transport: viemHttp() });
+const signer = toClientEvmSigner(account, publicClient);
+const x402 = new x402Client().register("eip155:8453", new ExactEvmScheme(signer));
+const fetchWithPayment = wrapFetchWithPayment(fetch, x402);
 
 const FILE_INPUT_SCHEMA = {
   type: "object",
@@ -38,10 +53,10 @@ const FILE_INPUT_SCHEMA = {
 } as const;
 
 const TOOLS: Record<DocKind, string> = {
-  invoice: "Extract structured JSON (vendor, line items, totals, dates) from an invoice PDF or image.",
-  receipt: "Extract structured JSON (merchant, items, totals) from a receipt PDF or image.",
-  contract: "Extract structured JSON (parties, dates, term, obligations, signatures) from a contract PDF or image.",
-  resume: "Extract structured JSON (contact info, work experience, education, skills) from a resume PDF or image.",
+  invoice: "Extract structured JSON (vendor, line items, totals, dates) from an invoice PDF or image. $0.05 in USDC on Base, paid from WALLET_PRIVATE_KEY on every call.",
+  receipt: "Extract structured JSON (merchant, items, totals) from a receipt PDF or image. $0.05 in USDC on Base, paid from WALLET_PRIVATE_KEY on every call.",
+  contract: "Extract structured JSON (parties, dates, term, obligations, signatures) from a contract PDF or image. $0.05 in USDC on Base, paid from WALLET_PRIVATE_KEY on every call.",
+  resume: "Extract structured JSON (contact info, work experience, education, skills) from a resume PDF or image. $0.05 in USDC on Base, paid from WALLET_PRIVATE_KEY on every call.",
 };
 
 const CUSTOM_INPUT_SCHEMA = {
@@ -61,7 +76,7 @@ const CUSTOM_INPUT_SCHEMA = {
 } as const;
 
 const server = new Server(
-  { name: "doc-extract", version: "0.1.0" },
+  { name: "doc-extract", version: "0.2.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -74,11 +89,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     })),
     {
       name: "extract_custom",
-      description: "Extract structured JSON from a PDF or image into a caller-supplied JSON Schema.",
+      description:
+        "Extract structured JSON from a PDF/image or raw text/HTML into a caller-supplied JSON Schema. " +
+        "$0.08 in USDC on Base, paid from WALLET_PRIVATE_KEY on every call.",
       inputSchema: CUSTOM_INPUT_SCHEMA,
     },
   ],
 }));
+
+async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
+  const bytes = Buffer.from(base64, "base64");
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function callPaidEndpoint(path: string, form: FormData) {
+  const response = await fetchWithPayment(`${API_BASE}${path}`, { method: "POST", body: form });
+  const rawText = await response.text();
+  let body: unknown;
+  try {
+    body = JSON.parse(rawText);
+  } catch {
+    body = rawText;
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Paid request to ${path} failed (HTTP ${response.status}): ${typeof body === "string" ? body : JSON.stringify(body)}`
+    );
+  }
+  return body;
+}
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
@@ -88,7 +127,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const mimeType = args?.mime_type as string | undefined;
     const rawContent = args?.content as string | undefined;
     const rawSchema = args?.schema as string;
-    const rawInstructions = (args?.instructions as string) ?? null;
+    const rawInstructions = args?.instructions as string | undefined;
 
     if (!rawSchema) {
       throw new Error("schema is required");
@@ -97,34 +136,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       throw new Error("Provide exactly one of file_base64 (with mime_type) or content");
     }
 
-    const schemaResult = parseCustomSchema(rawSchema);
-    if ("error" in schemaResult) {
-      throw new Error(schemaResult.error);
-    }
-    const instructionsResult = validateInstructions(rawInstructions);
-    if ("error" in instructionsResult) {
-      throw new Error(instructionsResult.error);
-    }
-
-    let extractionInput: CustomExtractionInput;
+    const form = new FormData();
+    form.append("schema", rawSchema);
+    if (rawInstructions) form.append("instructions", rawInstructions);
     if (fileBase64) {
-      if (!mimeType) {
-        throw new Error("mime_type is required when file_base64 is given");
-      }
-      extractionInput = { type: "document", document: { base64: fileBase64, mediaType: mimeType } };
+      if (!mimeType) throw new Error("mime_type is required when file_base64 is given");
+      form.append("file", await base64ToBlob(fileBase64, mimeType), "document");
     } else {
-      const contentResult = validateTextContent(rawContent as string);
-      if ("error" in contentResult) {
-        throw new Error(contentResult.error);
-      }
-      extractionInput = { type: "text", text: contentResult.content };
+      form.append("content", rawContent as string);
     }
 
-    const data = await callCustomExtractionTool(env, extractionInput, schemaResult.schema, instructionsResult.instructions);
-
-    return {
-      content: [{ type: "text", text: JSON.stringify({ data, validation_warnings: [], retried: false }, null, 2) }],
-    };
+    const data = await callPaidEndpoint("/extract/custom", form);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 
   const kind = name.replace(/^extract_/, "") as DocKind;
@@ -134,32 +157,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   const fileBase64 = args?.file_base64 as string;
   const mimeType = args?.mime_type as string;
-
   if (!fileBase64 || !mimeType) {
     throw new Error("file_base64 and mime_type are required");
   }
 
-  const result = await extractDocument<ExtractedData>(env, kind, {
-    base64: fileBase64,
-    mediaType: mimeType,
-  });
+  const form = new FormData();
+  form.append("file", await base64ToBlob(fileBase64, mimeType), "document");
+  const data = await callPaidEndpoint(`/extract/${kind}`, form);
 
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(
-          {
-            data: result.data,
-            validation_warnings: result.validation_warnings,
-            retried: result.retried,
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  };
+  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
 });
 
 const transport = new StdioServerTransport();
