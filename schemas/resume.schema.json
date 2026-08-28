@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ResumeExtraction",
+  "type": "object",
+  "properties": {
+    "candidate": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": ["string", "null"] },
+        "phone": { "type": ["string", "null"] },
+        "location": { "type": ["string", "null"] }
+      },
+      "required": ["name", "email", "phone", "location"]
+    },
+    "summary": { "type": ["string", "null"], "description": "Professional summary/objective if present" },
+    "work_experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "company": { "type": "string" },
+          "title": { "type": "string" },
+          "start_date": { "type": ["string", "null"], "description": "ISO 8601 date, or year if that's all that's shown" },
+          "end_date": { "type": ["string", "null"], "description": "null if current/ongoing" },
+          "description": { "type": ["string", "null"] }
+        },
+        "required": ["company", "title", "start_date", "end_date", "description"]
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "institution": { "type": "string" },
+          "degree": { "type": ["string", "null"] },
+          "field": { "type": ["string", "null"] },
+          "graduation_date": { "type": ["string", "null"] }
+        },
+        "required": ["institution", "degree", "field", "graduation_date"]
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "required": ["overall", "fields"]
+    }
+  },
+  "required": ["candidate", "summary", "work_experience", "education", "skills", "confidence"]
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContractExtraction",
+  "type": "object",
+  "properties": {
+    "title": { "type": ["string", "null"], "description": "Contract title/heading if present" },
+    "parties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": ["string", "null"], "description": "e.g. Client, Vendor, Landlord, Employer" }
+        },
+        "required": ["name", "role"]
+      }
+    },
+    "effective_date": { "type": ["string", "null"], "description": "ISO 8601 date" },
+    "expiration_date": { "type": ["string", "null"], "description": "ISO 8601 date, null if evergreen/at-will" },
+    "term": { "type": ["string", "null"], "description": "Plain description of contract duration, e.g. '12 months', 'at-will'" },
+    "payment_terms": { "type": ["string", "null"] },
+    "termination_clause": { "type": ["string", "null"], "description": "Brief summary of termination conditions" },
+    "governing_law": { "type": ["string", "null"], "description": "Governing jurisdiction, e.g. 'State of Delaware'" },
+    "key_obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "party": { "type": "string" },
+          "obligation": { "type": "string" }
+        },
+        "required": ["party", "obligation"]
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": ["string", "null"] },
+          "title": { "type": ["string", "null"] },
+          "signed": { "type": "boolean" },
+          "date": { "type": ["string", "null"] }
+        },
+        "required": ["name", "title", "signed", "date"]
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "required": ["overall", "fields"]
+    }
+  },
+  "required": [
+    "title",
+    "parties",
+    "effective_date",
+    "expiration_date",
+    "term",
+    "payment_terms",
+    "termination_clause",
+    "governing_law",
+    "key_obligations",
+    "signatures",
+    "confidence"
+  ]
+}

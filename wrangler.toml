@@ -1,0 +1,19 @@
+name = "doc-extract-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# Secrets (set via `wrangler secret put <NAME>`, never committed):
+#   ANTHROPIC_API_KEY
+#   CDP_API_KEY_ID       (only needed once X402_NETWORK below is "base" — see README)
+#   CDP_API_KEY_SECRET
+
+[vars]
+ANTHROPIC_MODEL = "claude-sonnet-5"
+X402_PAY_TO_ADDRESS = "0x65c767C483dd862d08Bc3d6500Cd4CD770Ae28ED"
+X402_NETWORK = "base"
+X402_PRICE_PER_CALL = "$0.05"
+X402_CUSTOM_PRICE_PER_CALL = "$0.08"
