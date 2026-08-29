@@ -38,9 +38,21 @@ export async function handleExtract(c: Context<{ Bindings: Env }>, kind: DocKind
     return c.json({ error: "Extraction failed. Please retry." }, 502);
   }
 
-  return c.json({
+  const body = {
     data: result.data,
     validation_warnings: result.validation_warnings,
     retried: result.retried,
-  });
+  };
+
+  // A hard failure (real arithmetic/format inconsistency, not just a low-confidence flag) still
+  // survived one corrective retry — the extraction is genuinely wrong, not just uncertain. Return
+  // it anyway so the caller can see what happened, but at a non-2xx status: @x402/hono only
+  // settles payment on a non-error response, so this specific call is free. Low-confidence-only
+  // warnings don't hit this path — those settle normally, since low confidence on a legitimately
+  // hard-to-read document isn't evidence the extraction is actually wrong.
+  if (result.hardFailure) {
+    return c.json(body, 422);
+  }
+
+  return c.json(body);
 }

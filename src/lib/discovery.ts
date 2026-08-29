@@ -14,8 +14,9 @@ import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 // over that limit, which is why no real payment had settled since it was written.
 const DIFFERENTIATION =
   "Unlike generic OCR (raw text) or text-only extraction APIs, this takes the raw file directly " +
-  "and returns a financially-validated schema: line items checked against subtotal/tax/total, " +
-  "dates and currency validated, one automatic retry on failure, per-field confidence included.";
+  "and validates against source math: line items checked against subtotal/tax/total, dates and " +
+  "currency checked, one automatic retry. If it still fails after that, you aren't charged — " +
+  "settlement is skipped, not just flagged.";
 
 const INVOICE_OUTPUT_EXAMPLE = {
   data: {
@@ -63,13 +64,13 @@ const RECEIPT_OUTPUT_EXAMPLE = {
 
 const CONTRACT_DIFFERENTIATION =
   "Unlike generic OCR or text-only extraction APIs, this takes the raw file directly and " +
-  "validates date logic (expiration after effective date), with one automatic retry on failure. " +
-  "Per-field confidence scores included.";
+  "validates date logic (expiration after effective date), one automatic retry. Still fails " +
+  "after that, you aren't charged. Per-field confidence included.";
 
 const RESUME_DIFFERENTIATION =
   "Unlike generic OCR or text-only extraction APIs, this takes the raw file directly and " +
-  "validates email format and work-history date ordering, with one automatic retry on failure. " +
-  "Per-field confidence included. No content is stored after the response returns.";
+  "validates email format and work-history date order, one automatic retry. Still fails after " +
+  "that, you aren't charged. No content stored after the response returns.";
 
 const CONTRACT_OUTPUT_EXAMPLE = {
   data: {

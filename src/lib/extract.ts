@@ -1,8 +1,8 @@
 import { callExtractionTool, type DocumentInput } from "./claude";
-import { validateInvoice, validateReceipt, validateContract, validateResume } from "./validate";
+import { validateInvoice, validateReceipt, validateContract, validateResume, type ValidationResult } from "./validate";
 import type { DocKind, Env, ExtractionResult, ExtractedData } from "../types";
 
-const VALIDATORS: Record<DocKind, (data: any) => string[]> = {
+const VALIDATORS: Record<DocKind, (data: any) => ValidationResult> = {
   invoice: validateInvoice,
   receipt: validateReceipt,
   contract: validateContract,
@@ -17,15 +17,15 @@ export async function extractDocument<T extends ExtractedData>(
   const validate = VALIDATORS[kind];
 
   const firstPass = (await callExtractionTool(env, kind, input)) as T;
-  let warnings = validate(firstPass);
+  let result = validate(firstPass);
 
-  if (warnings.length === 0) {
-    return { data: firstPass, validation_warnings: [], retried: false };
+  if (result.warnings.length === 0) {
+    return { data: firstPass, validation_warnings: [], retried: false, hardFailure: false };
   }
 
-  const correction = `Recheck the following before returning: ${warnings.join("; ")}.`;
+  const correction = `Recheck the following before returning: ${result.warnings.join("; ")}.`;
   const secondPass = (await callExtractionTool(env, kind, input, correction)) as T;
-  warnings = validate(secondPass);
+  result = validate(secondPass);
 
-  return { data: secondPass, validation_warnings: warnings, retried: true };
+  return { data: secondPass, validation_warnings: result.warnings, retried: true, hardFailure: result.hardFailure };
 }

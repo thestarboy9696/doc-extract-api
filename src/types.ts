@@ -86,6 +86,10 @@ export interface ExtractionResult<T extends ExtractedData> {
   data: T;
   validation_warnings: string[];
   retried: boolean;
+  // True if a real consistency/format check still failed after the one corrective retry — not
+  // just a low-confidence flag. The route handler turns this into a non-2xx response so x402
+  // never settles payment for it. See src/lib/validate.ts's ValidationResult doc comment.
+  hardFailure: boolean;
 }
 
 export interface Env {
