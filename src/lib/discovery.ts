@@ -181,16 +181,27 @@ export const resumeDiscoveryExtension = declareDiscoveryExtension({
 // "doc-extract-api" named the mechanism, not the differentiator (validated/fixed-shape output
 // vs. free-text OCR) — "SchemaLock" names that instead, and is now prefixed on every description
 // below so it appears in the text agents actually search against, not just the serviceName field.
+// Tags/description wording tuned against real Bazaar search results (Sep 2026), not guessed:
+// querying the live discovery/search endpoint with realistic agent phrasing showed (a) we were
+// completely absent from "convert document to JSON" — no listing here used the word "convert" or
+// carried a "json" tag, just "document-extraction" — and (b) a bare-bones competitor with no
+// tags and no serviceName outranked our own /extract/custom listing for "extract structured data
+// from a PDF" purely because its one-line description echoed that exact phrase back, including
+// the word "data" that ours was missing ("...JSON from..." vs the query's "...data from...").
+// Richer differentiation copy doesn't help if it doesn't also contain the literal words an agent's
+// query uses. "ocr" was dropped for "json" (also more accurate — this uses Claude's native vision,
+// not an OCR pipeline) and "pdf" was restored to the custom-schema route, which had lost it when
+// that listing's tags were last rewritten for the text/HTML addition.
 export const SERVICE_NAME = "SchemaLock";
-export const INVOICE_TAGS = ["invoice", "pdf", "ocr", "document-extraction", "accounts-payable"];
-export const RECEIPT_TAGS = ["receipt", "pdf", "ocr", "document-extraction", "expense"];
-export const CONTRACT_TAGS = ["contract", "pdf", "ocr", "document-extraction", "legal"];
-export const RESUME_TAGS = ["resume", "pdf", "ocr", "document-extraction", "recruiting"];
-export const CUSTOM_TAGS = ["custom-schema", "html", "web-scraping", "document-extraction", "structured-data"];
+export const INVOICE_TAGS = ["invoice", "pdf", "json", "document-extraction", "accounts-payable"];
+export const RECEIPT_TAGS = ["receipt", "pdf", "json", "document-extraction", "expense"];
+export const CONTRACT_TAGS = ["contract", "pdf", "json", "document-extraction", "legal"];
+export const RESUME_TAGS = ["resume", "pdf", "json", "document-extraction", "recruiting"];
+export const CUSTOM_TAGS = ["custom-schema", "pdf", "json", "document-extraction", "structured-data"];
 
-export const CUSTOM_DESCRIPTION = `SchemaLock — extract structured JSON from any PDF/image or raw text/HTML into a JSON Schema you supply, not limited to invoice/receipt/contract/resume. ${CUSTOM_DIFFERENTIATION}`;
+export const CUSTOM_DESCRIPTION = `SchemaLock — extract structured JSON data from any PDF/image or raw text/HTML, converting it into a JSON Schema you supply, not limited to invoice/receipt/contract/resume. ${CUSTOM_DIFFERENTIATION}`;
 
-export const INVOICE_DESCRIPTION = `SchemaLock — extract structured JSON from an invoice PDF or image (vendor, line items, subtotal, tax, total, dates, payment terms). ${DIFFERENTIATION}`;
-export const RECEIPT_DESCRIPTION = `SchemaLock — extract structured JSON from a receipt PDF or image (merchant, items, subtotal, tax, tip, total, payment method). ${DIFFERENTIATION}`;
-export const CONTRACT_DESCRIPTION = `SchemaLock — extract structured JSON from a contract PDF or image (parties, dates, term, payment terms, termination clause, governing law, obligations, signatures). ${CONTRACT_DIFFERENTIATION}`;
-export const RESUME_DESCRIPTION = `SchemaLock — extract structured JSON from a resume PDF or image (contact info, work experience, education, skills). ${RESUME_DIFFERENTIATION}`;
+export const INVOICE_DESCRIPTION = `SchemaLock — extract structured JSON data from an invoice PDF or image (vendor, line items, subtotal, tax, total, dates, payment terms). ${DIFFERENTIATION}`;
+export const RECEIPT_DESCRIPTION = `SchemaLock — extract structured JSON data from a receipt PDF or image (merchant, items, subtotal, tax, tip, total, payment method). ${DIFFERENTIATION}`;
+export const CONTRACT_DESCRIPTION = `SchemaLock — extract structured JSON data from a contract PDF or image (parties, dates, term, payment terms, termination clause, governing law, obligations, signatures). ${CONTRACT_DIFFERENTIATION}`;
+export const RESUME_DESCRIPTION = `SchemaLock — extract structured JSON data from a resume PDF or image (contact info, work experience, education, skills). ${RESUME_DIFFERENTIATION}`;

@@ -46,6 +46,73 @@ app.get("/", (c) =>
   })
 );
 
+// A discovery surface that doesn't depend on any one facilitator's catalog: an agent (or an
+// aggregator, or another LLM doing a live fetch of this domain) that checks the x402 protocol's
+// own well-known convention finds this regardless of whether it's been crawled into CDP's, or any
+// other facilitator's, Bazaar-equivalent index yet.
+app.get("/.well-known/x402", (c) => {
+  const base = new URL(c.req.url).origin;
+  return c.json({
+    version: 1,
+    resources: [...DOC_KINDS.map((kind) => `${base}/extract/${kind}`), `${base}/extract/custom`],
+    ownershipProofs: [c.env.X402_PAY_TO_ADDRESS],
+    wellKnown: `${base}/.well-known/x402`,
+    llmsTxt: `${base}/llms.txt`,
+    mcp: "doc-extract-api-mcp (npm: doc-extract-api; also on the official MCP Registry, io.github.thestarboy9696/doc-extract-api) — a paid client for these same endpoints, not a free alternative",
+    instructions: `POST multipart/form-data to any resource above. Fixed types (invoice/receipt/contract/resume) take a 'file' field (PDF/PNG/JPEG/WEBP, max 15MB) at ${c.env.X402_PRICE_PER_CALL}/call. /extract/custom additionally needs a 'schema' field (JSON Schema string) and takes 'file' OR 'content' (raw text/HTML, max 100000 chars) at ${c.env.X402_CUSTOM_PRICE_PER_CALL}/call. Unauthenticated requests get a 402 with the full payment manifest per resource. A document that fails validation after one automatic retry returns 422, not 200 — x402 settlement is skipped for that call, not just flagged in the response body.`,
+  });
+});
+
+// Same information as the root endpoint and the well-known manifest, but as plain text aimed
+// specifically at an LLM doing a generic read of this domain rather than a structured discovery
+// query — the emerging llms.txt convention other x402 services in this ecosystem already publish.
+app.get("/llms.txt", (c) => {
+  const base = new URL(c.req.url).origin;
+  const lines = [
+    "# SchemaLock",
+    "",
+    "Document-to-structured-JSON extraction for AI agents. No signup, no API key. Pay per call",
+    "via x402 (USDC on Base) directly over HTTP.",
+    "",
+    "## Endpoints",
+    "",
+    ...DOC_KINDS.map(
+      (kind) =>
+        `- POST ${base}/extract/${kind} — ${c.env.X402_PRICE_PER_CALL}/call. multipart/form-data, field 'file' (PDF/PNG/JPEG/WEBP, max 15MB).`
+    ),
+    `- POST ${base}/extract/custom — ${c.env.X402_CUSTOM_PRICE_PER_CALL}/call. multipart/form-data, field 'schema' (a JSON Schema string) plus exactly one of 'file' (as above) or 'content' (raw text/HTML, max 100000 chars). Optional 'instructions' field.`,
+    "",
+    "## How payment works",
+    "",
+    "Send the request with no payment first. The response is 402 with a PAYMENT-REQUIRED header",
+    "carrying the full manifest (price, network, asset, receiving address). Sign a USDC transfer",
+    "authorization and retry with an X-PAYMENT header — any x402-aware HTTP client (e.g. @x402/fetch)",
+    "does this automatically. No account, no API key.",
+    "",
+    "## The guarantee that's actually enforced, not just claimed",
+    "",
+    "Extractions are checked against their own source math (line items vs. subtotal vs. total,",
+    "dates, currency/email format). If a document still fails one of those checks after one",
+    "automatic corrective retry, the response is HTTP 422, not 200 — x402 only settles payment on",
+    "a non-error response, so that specific call is free. Low-confidence flags alone (the model",
+    "being unsure on a genuinely hard-to-read source) don't trigger this — only a real",
+    "arithmetic/format failure does.",
+    "",
+    "## Also available as an MCP client",
+    "",
+    "`npx doc-extract-api-mcp` (npm: doc-extract-api; official MCP Registry:",
+    "io.github.thestarboy9696/doc-extract-api). This is a thin client for the same paid API above —",
+    "every tool call is a real x402 payment from a wallet you supply via WALLET_PRIVATE_KEY. There",
+    "is no free extraction path anywhere this service is exposed.",
+    "",
+    "## Links",
+    "",
+    `- Source: https://github.com/thestarboy9696/doc-extract-api`,
+    `- Well-known manifest: ${base}/.well-known/x402`,
+  ];
+  return c.text(lines.join("\n"));
+});
+
 // Cloudflare Workers only expose env bindings inside a request handler, not at module load
 // time, so this middleware can't be built once up front the normal way. But it MUST still only
 // be built once per isolate, not once per request: @x402/hono's paymentMiddlewareFromConfig
