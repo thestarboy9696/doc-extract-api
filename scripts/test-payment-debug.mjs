@@ -5,6 +5,7 @@ import { toClientEvmSigner, ExactEvmScheme } from "@x402/evm";
 import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 const RAW_KEY = process.env.TEST_WALLET_PRIVATE_KEY;
 if (!RAW_KEY) {
@@ -100,11 +101,12 @@ const loggingFetch = async (input, opts) => {
 
 const fetchWithPayment = wrapFetchWithPayment(loggingFetch, client);
 
-const fileBytes = await readFile(
-  "/private/tmp/claude-501/-Users-b-Desktop-DBA-Code-Testing/043a8d4b-2b1f-4eb6-8454-9e7e84780894/scratchpad/test-invoice.png"
-);
+// A repo-committed fixture, not a path into the ephemeral per-session scratchpad — that path
+// broke this script the moment the session that created it ended and its scratchpad was cleared.
+const fixturePath = fileURLToPath(new URL("./fixtures/test-invoice.pdf", import.meta.url));
+const fileBytes = await readFile(fixturePath);
 const form = new FormData();
-form.append("file", new Blob([fileBytes], { type: "image/png" }), "test-invoice.png");
+form.append("file", new Blob([fileBytes], { type: "application/pdf" }), "test-invoice.pdf");
 if (ROUTE === "custom") {
   // The extraction result won't make much sense (it's an invoice image), but that doesn't matter
   // here — the goal is just a settled payment against /extract/custom to trigger Bazaar cataloging.

@@ -5,6 +5,7 @@ import { toClientEvmSigner, ExactEvmScheme } from "@x402/evm";
 import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 const PRIVATE_KEY = process.env.TEST_WALLET_PRIVATE_KEY;
 if (!PRIVATE_KEY) {
@@ -46,11 +47,12 @@ const signer = toClientEvmSigner(account, publicClient);
 const client = new x402Client().register("eip155:8453", new ExactEvmScheme(signer));
 const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 
-const fileBytes = await readFile(
-  "/private/tmp/claude-501/-Users-b-Desktop-DBA-Code-Testing/043a8d4b-2b1f-4eb6-8454-9e7e84780894/scratchpad/test-invoice.png"
-);
+// A repo-committed fixture, not a path into the ephemeral per-session scratchpad — that path
+// broke this script the moment the session that created it ended and its scratchpad was cleared.
+const fixturePath = fileURLToPath(new URL("./fixtures/test-invoice.pdf", import.meta.url));
+const fileBytes = await readFile(fixturePath);
 const form = new FormData();
-form.append("file", new Blob([fileBytes], { type: "image/png" }), "test-invoice.png");
+form.append("file", new Blob([fileBytes], { type: "application/pdf" }), "test-invoice.pdf");
 
 console.log("\nSending paid request (v2 protocol, mainnet)...");
 const response = await fetchWithPayment(API_URL, { method: "POST", body: form });
