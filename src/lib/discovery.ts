@@ -206,5 +206,5 @@ export const CUSTOM_DESCRIPTION = `SchemaLock — extract structured JSON data f
 
 export const INVOICE_DESCRIPTION = `SchemaLock — extract structured JSON data from an invoice PDF or image (vendor, line items, subtotal, tax, total, dates, payment terms). ${DIFFERENTIATION}`;
 export const RECEIPT_DESCRIPTION = `SchemaLock — extract structured JSON data from a receipt PDF or image (merchant, items, subtotal, tax, tip, total, payment method). ${DIFFERENTIATION}`;
-export const CONTRACT_DESCRIPTION = `SchemaLock — extract structured JSON data from a contract PDF or image (parties, dates, term, payment terms, termination clause, governing law, obligations, signatures). ${CONTRACT_DIFFERENTIATION}`;
+export const CONTRACT_DESCRIPTION = `SchemaLock — parse a contract for its key terms as structured JSON data from a PDF or image (parties, dates, term, payment terms, termination clause, governing law, obligations, signatures). ${CONTRACT_DIFFERENTIATION}`;
 export const RESUME_DESCRIPTION = `SchemaLock — extract structured JSON data from a resume PDF or image (contact info, work experience, education, skills). ${RESUME_DIFFERENTIATION}`;
