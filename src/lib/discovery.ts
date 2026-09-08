@@ -5,8 +5,11 @@ import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 //   no validation, nothing an agent can trust without its own parsing/checking pass.
 // - Generic structured-extraction competitors (e.g. schema-to-JSON) charge ~$0.10/call and
 //   require the caller to already have plain text — they don't accept a PDF/image directly.
-// This service is the only one found doing both at once: raw file in, fixed validated
-// schema out, at a fifth of the generic-extraction price.
+// This service is the only one found doing both at once: raw file in, fixed validated schema out.
+// Pricing (Sep 2026, see wrangler.toml) is matched to the lowest verified live-402 price from a
+// direct per-category competitor, not set independently — so the differentiation has to carry the
+// listing on its own merits (the settlement-skipped-on-failure guarantee, mainly), not on being
+// unusually cheap.
 // Kept short deliberately: CDP's facilitator enforces a 500-char max on this field (undocumented
 // in the x402 spec itself, found by inspecting @coinbase/cdp-sdk's generated OpenAPI types) and
 // silently fails payment verification on any resource whose description exceeds it — no error

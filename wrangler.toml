@@ -15,5 +15,12 @@ enabled = true
 ANTHROPIC_MODEL = "claude-sonnet-5"
 X402_PAY_TO_ADDRESS = "0x65c767C483dd862d08Bc3d6500Cd4CD770Ae28ED"
 X402_NETWORK = "base"
-X402_PRICE_PER_CALL = "$0.05"
-X402_CUSTOM_PRICE_PER_CALL = "$0.08"
+# Per-route, not a shared price: matched to the lowest verified live-402 price from a direct
+# competitor per category (checked Sep 2026 — see git history for the exact listings and prices).
+# Contract's real comparable (legal-clause-extractor.pdfextractapi.workers.dev) is priced a cent
+# higher than the invoice/receipt/resume/custom comparables, hence the split instead of one var.
+X402_INVOICE_PRICE = "$0.02"
+X402_RECEIPT_PRICE = "$0.02"
+X402_CONTRACT_PRICE = "$0.03"
+X402_RESUME_PRICE = "$0.02"
+X402_CUSTOM_PRICE = "$0.02"

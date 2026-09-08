@@ -31,15 +31,26 @@ app.use("*", cors());
 
 const DOC_KINDS: DocKind[] = ["invoice", "receipt", "contract", "resume"];
 
+// Per-route, not shared — see wrangler.toml for why. Reused across the root listing, the
+// well-known manifest, llms.txt, and the actual payment middleware, so there's exactly one place
+// that maps a kind to its env var.
+function priceFor(env: Env, kind: DocKind): string {
+  const map: Record<DocKind, string> = {
+    invoice: env.X402_INVOICE_PRICE,
+    receipt: env.X402_RECEIPT_PRICE,
+    contract: env.X402_CONTRACT_PRICE,
+    resume: env.X402_RESUME_PRICE,
+  };
+  return map[kind];
+}
+
 app.get("/", (c) =>
   c.json({
     status: "ok",
     description: "Document-to-structured-JSON extraction for AI agents. Pay per call via x402 (USDC). Listed on the x402 Bazaar.",
     endpoints: {
-      ...Object.fromEntries(
-        DOC_KINDS.map((kind) => [`POST /extract/${kind}`, `${c.env.X402_PRICE_PER_CALL} per call`])
-      ),
-      "POST /extract/custom": `${c.env.X402_CUSTOM_PRICE_PER_CALL} per call (caller-supplied JSON Schema)`,
+      ...Object.fromEntries(DOC_KINDS.map((kind) => [`POST /extract/${kind}`, `${priceFor(c.env, kind)} per call`])),
+      "POST /extract/custom": `${c.env.X402_CUSTOM_PRICE} per call (caller-supplied JSON Schema)`,
     },
     payment: "x402",
     network: c.env.X402_NETWORK,
@@ -52,6 +63,7 @@ app.get("/", (c) =>
 // other facilitator's, Bazaar-equivalent index yet.
 app.get("/.well-known/x402", (c) => {
   const base = new URL(c.req.url).origin;
+  const priceList = DOC_KINDS.map((kind) => `${kind} ${priceFor(c.env, kind)}`).join(", ");
   return c.json({
     version: 1,
     resources: [...DOC_KINDS.map((kind) => `${base}/extract/${kind}`), `${base}/extract/custom`],
@@ -59,7 +71,7 @@ app.get("/.well-known/x402", (c) => {
     wellKnown: `${base}/.well-known/x402`,
     llmsTxt: `${base}/llms.txt`,
     mcp: "doc-extract-api-mcp (npm: doc-extract-api; also on the official MCP Registry, io.github.thestarboy9696/doc-extract-api) — a paid client for these same endpoints, not a free alternative",
-    instructions: `POST multipart/form-data to any resource above. Fixed types (invoice/receipt/contract/resume) take a 'file' field (PDF/PNG/JPEG/WEBP, max 15MB) at ${c.env.X402_PRICE_PER_CALL}/call. /extract/custom additionally needs a 'schema' field (JSON Schema string) and takes 'file' OR 'content' (raw text/HTML, max 100000 chars) at ${c.env.X402_CUSTOM_PRICE_PER_CALL}/call. Unauthenticated requests get a 402 with the full payment manifest per resource. A document that fails validation after one automatic retry returns 422, not 200 — x402 settlement is skipped for that call, not just flagged in the response body.`,
+    instructions: `POST multipart/form-data to any resource above. Fixed types (invoice/receipt/contract/resume) take a 'file' field (PDF/PNG/JPEG/WEBP, max 15MB) — per-route price: ${priceList}. /extract/custom additionally needs a 'schema' field (JSON Schema string) and takes 'file' OR 'content' (raw text/HTML, max 100000 chars) at ${c.env.X402_CUSTOM_PRICE}/call. Unauthenticated requests get a 402 with the full payment manifest per resource. A document that fails validation after one automatic retry returns 422, not 200 — x402 settlement is skipped for that call, not just flagged in the response body.`,
   });
 });
 
@@ -78,9 +90,9 @@ app.get("/llms.txt", (c) => {
     "",
     ...DOC_KINDS.map(
       (kind) =>
-        `- POST ${base}/extract/${kind} — ${c.env.X402_PRICE_PER_CALL}/call. multipart/form-data, field 'file' (PDF/PNG/JPEG/WEBP, max 15MB).`
+        `- POST ${base}/extract/${kind} — ${priceFor(c.env, kind)}/call. multipart/form-data, field 'file' (PDF/PNG/JPEG/WEBP, max 15MB).`
     ),
-    `- POST ${base}/extract/custom — ${c.env.X402_CUSTOM_PRICE_PER_CALL}/call. multipart/form-data, field 'schema' (a JSON Schema string) plus exactly one of 'file' (as above) or 'content' (raw text/HTML, max 100000 chars). Optional 'instructions' field.`,
+    `- POST ${base}/extract/custom — ${c.env.X402_CUSTOM_PRICE}/call. multipart/form-data, field 'schema' (a JSON Schema string) plus exactly one of 'file' (as above) or 'content' (raw text/HTML, max 100000 chars). Optional 'instructions' field.`,
     "",
     "## How payment works",
     "",
@@ -132,14 +144,12 @@ app.use("/extract/*", async (c, next) => {
   if (!cachedMiddleware) {
     const network = toCaip2Network(c.env.X402_NETWORK);
     const payTo = c.env.X402_PAY_TO_ADDRESS;
-    const price = c.env.X402_PRICE_PER_CALL;
-    const accepts = { scheme: "exact" as const, price, network, payTo };
-    const customAccepts = { scheme: "exact" as const, price: c.env.X402_CUSTOM_PRICE_PER_CALL, network, payTo };
+    const acceptsFor = (price: string) => ({ scheme: "exact" as const, price, network, payTo });
 
     cachedMiddleware = paymentMiddlewareFromConfig(
       {
         "/extract/custom": {
-          accepts: customAccepts,
+          accepts: acceptsFor(c.env.X402_CUSTOM_PRICE),
           description: CUSTOM_DESCRIPTION,
           serviceName: SERVICE_NAME,
           tags: CUSTOM_TAGS,
@@ -147,7 +157,7 @@ app.use("/extract/*", async (c, next) => {
           extensions: customDiscoveryExtension,
         },
         "/extract/invoice": {
-          accepts,
+          accepts: acceptsFor(c.env.X402_INVOICE_PRICE),
           description: INVOICE_DESCRIPTION,
           serviceName: SERVICE_NAME,
           tags: INVOICE_TAGS,
@@ -155,7 +165,7 @@ app.use("/extract/*", async (c, next) => {
           extensions: invoiceDiscoveryExtension,
         },
         "/extract/receipt": {
-          accepts,
+          accepts: acceptsFor(c.env.X402_RECEIPT_PRICE),
           description: RECEIPT_DESCRIPTION,
           serviceName: SERVICE_NAME,
           tags: RECEIPT_TAGS,
@@ -163,7 +173,7 @@ app.use("/extract/*", async (c, next) => {
           extensions: receiptDiscoveryExtension,
         },
         "/extract/contract": {
-          accepts,
+          accepts: acceptsFor(c.env.X402_CONTRACT_PRICE),
           description: CONTRACT_DESCRIPTION,
           serviceName: SERVICE_NAME,
           tags: CONTRACT_TAGS,
@@ -171,7 +181,7 @@ app.use("/extract/*", async (c, next) => {
           extensions: contractDiscoveryExtension,
         },
         "/extract/resume": {
-          accepts,
+          accepts: acceptsFor(c.env.X402_RESUME_PRICE),
           description: RESUME_DESCRIPTION,
           serviceName: SERVICE_NAME,
           tags: RESUME_TAGS,

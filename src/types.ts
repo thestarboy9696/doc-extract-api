@@ -97,8 +97,12 @@ export interface Env {
   ANTHROPIC_MODEL?: string;
   X402_PAY_TO_ADDRESS: string;
   X402_NETWORK: string;
-  X402_PRICE_PER_CALL: string;
-  X402_CUSTOM_PRICE_PER_CALL: string;
+  // Per-route, not shared — see wrangler.toml for why contract differs from the rest.
+  X402_INVOICE_PRICE: string;
+  X402_RECEIPT_PRICE: string;
+  X402_CONTRACT_PRICE: string;
+  X402_RESUME_PRICE: string;
+  X402_CUSTOM_PRICE: string;
   // Required only when X402_NETWORK is "base" (mainnet) — the free default facilitator
   // is testnet-only. Get these from https://portal.cdp.coinbase.com.
   CDP_API_KEY_ID?: string;

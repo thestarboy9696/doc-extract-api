@@ -47,8 +47,11 @@ mainnet payment yet so aren't catalogued at all.
 competitors are free but return raw unvalidated text; generic structured-extraction
 competitors charge ~$0.10/call and require the caller to already have plain text, not a raw
 file. This is the only listing found doing both — raw PDF/image in, a fixed validated schema
-out. Priced at $0.05/call (still half the nearest real competitor). See `src/lib/discovery.ts`
-for the exact listing copy and each route's tags (`serviceName`/`tags`/`description`).
+out. Pricing (see `wrangler.toml`) is matched per-route to the lowest verified live-402 price
+from a direct competitor in that category, not set independently — $0.02 for
+invoice/receipt/resume/custom, $0.03 for contract (its real comparable is a cent higher). See
+`src/lib/discovery.ts` for the exact listing copy and each route's tags
+(`serviceName`/`tags`/`description`).
 
 ## Architecture
 
@@ -136,7 +139,9 @@ bank account number) — never put a private key anywhere in this project.
 `X402_NETWORK` defaults to `base-sepolia` (testnet, free fake USDC from a faucet — good for
 verifying the whole flow with zero real money at risk).
 
-`X402_PRICE_PER_CALL` defaults to `$0.05`, applied to all four routes.
+Pricing is per-route, not shared: `X402_INVOICE_PRICE`, `X402_RECEIPT_PRICE`,
+`X402_CONTRACT_PRICE`, `X402_RESUME_PRICE`, `X402_CUSTOM_PRICE`. Defaults are matched to the
+lowest verified live competitor per category — see the Positioning note above.
 
 ### 2b. Going to mainnet (`X402_NETWORK = "base"`)
 
